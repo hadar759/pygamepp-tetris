@@ -5,7 +5,7 @@ from tetris_piece import Piece
 
 class IPiece(Piece):
     def __init__(self):
-        self.sprite = pygame.image.load(r"./tetris-sprite.png")
+        self.sprite = pygame.image.load(r"./resources/tetris-sprite.png")
         super().__init__(self.sprite, [[0, 4], [1, 4], [2, 4], [3, 4]])
 
     def rotate_clockwise(self, grid):

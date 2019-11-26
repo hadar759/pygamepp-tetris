@@ -49,9 +49,15 @@ class Piece(GridGameObject):
     def rotate_counter_clockwise(self, grid):
         pass
 
-    def gravitate(self):
-        for i in range(len(self.position)):
-            self.position[i][0] += 1
+    def gravitate(self, grid: Grid):
+        illegal_move = False
+        old_position = self.position
+        for pos in self.position:
+            pos[0] += 1
+            if not grid.is_a_legal_move(pos):
+                illegal_move = True
+        if illegal_move:
+            self.position = old_position
 
     def rotated_piece_position(self, point: List[int], pivot_point: List[int],
                                rotation_matrix: Tuple[List[int], List[int]]) -> List[int]:

@@ -1,4 +1,4 @@
-from typing import List, Optional, Dict
+from typing import Tuple, Optional, Dict
 
 import pygame
 from pygame import USEREVENT
@@ -7,11 +7,16 @@ from pygamepp.game import Game
 from tetris_piece import Piece
 from tetris_grid import TetrisGrid
 from i_piece import IPiece
-
-# TODO work on clearing lines, make manual drop stop and find a fix for manual drop falling too far.
+from colors import Colors
+# TODO implement hard drop, keep track of score (easy, but need to increase the screen size).
+# Todo work on implementing 7 bag, and showing it, showing the score, making pieces flash when clearing
+# Todo maybe make the game a bit smoother (buffer inputs etc), WORK ON WALL KICKS
 
 
 class TetrisGame(Game):
+    TEXT = pygame.font.Font("./resources/joystix-monospace.ttf", 60).render("YOU LOSE",
+                                                                            True,
+                                                                            Colors.WHITE)
     GRAVITY_EVENT = USEREVENT + 1
     DAS_EVENT = USEREVENT + 2
     ARR_EVENT = USEREVENT + 3
@@ -24,8 +29,8 @@ class TetrisGame(Game):
                  refresh_rate: int = 60,
                  background_path: Optional[str] = None):
         super().__init__(width, height, refresh_rate, background_path)
-        self.frozen_pieces: List[Piece] = []
         self.cur_piece: Piece = None
+        self.score = 999999
         self.grid = TetrisGrid()
         self.move_variables: Dict[str, bool] = {"right_das": False,
                                                 "left_das": False,
@@ -39,7 +44,7 @@ class TetrisGame(Game):
         # Every event that has to do with moving the piece
         self.create_timer(self.GRAVITY_EVENT, 500)
         self.set_event_handler(self.GRAVITY_EVENT, self.gravitate)
-        self.create_timer(self.MANUAL_DROP, 50)
+        self.create_timer(self.MANUAL_DROP, 20)
         self.set_event_handler(self.MANUAL_DROP, self.manual_drop)
         self.set_event_handler(self.DAS_EVENT, self.start_DAS)
         self.set_event_handler(self.ARR_EVENT, self.start_ARR)
@@ -67,7 +72,7 @@ class TetrisGame(Game):
 
     def gravitate(self):
         self.grid.reset_screen(self.screen)
-        self.cur_piece.gravitate()
+        self.cur_piece.gravitate(self.grid)
 
     def manual_drop(self):
         if self.move_variables["manual_drop"]:
@@ -77,8 +82,10 @@ class TetrisGame(Game):
         self.move_variables["manual_drop"] = True
 
     def key_up(self):
-        for key in self.move_variables:
-            if key != "manual_drop":
+        if self.last_pressed_key == pygame.K_DOWN:
+            self.move_variables["manual_drop"] = False
+        elif self.last_pressed_key in [pygame.K_RIGHT, pygame.K_LEFT]:
+            for key in self.move_variables:
                 self.move_variables[key] = False
 
     def start_ARR(self):
@@ -128,15 +135,77 @@ class TetrisGame(Game):
 
     def should_freeze_piece(self):
         for pos in self.cur_piece.position:
-            if pos[0] == self.LOWER_BORDER:
+            if pos[0] >= self.LOWER_BORDER:
                 self.grid.freeze_piece(self.cur_piece)
                 self.cur_piece = None
                 break
 
             elif self.grid.blocks[pos[0] + 1][pos[1]].occupied:
                 self.grid.freeze_piece(self.cur_piece)
+                if pos[0] <= 0:
+                    self.game_over()
                 self.cur_piece = None
                 break
 
+    def game_over(self):
+        pygame.time.wait(1000)
+        self.fade()
+        self.screen.blit(self.TEXT, self.calculate_center_name_position())
+        pygame.display.flip()
+
+        pygame.time.wait(2500)
+        self.fade()
+        self.running = False
+        self.background_image = pygame.image.load("./resources/end-screen.png")
+        self.screen = pygame.display.set_mode((self.background_image.get_size()[0],
+                                               self.background_image.get_size()[1]))
+        self.screen.blit(self.background_image, (0, 0))
+        self.screen.blit(self.render_score(), (600, 75))
+        pygame.display.flip()
+        pygame.time.wait(5000)
+
+    def render_score(self):
+        return pygame.font.Font("./resources/joystix-monospace.ttf", 50).render(str(self.score),
+                                                                                True,
+                                                                                Colors.WHITE)
+
+    def fade(self):
+        fade = pygame.Surface((self.screen.get_rect()[2], self.screen.get_rect()[3]))
+        fade.fill((0, 0, 0))
+        for alpha in range(0, 100):
+            fade.set_alpha(alpha)
+            self.screen.blit(fade, (0, 0))
+            pygame.display.update()
+            pygame.time.delay(7)
+
+    def calculate_center_name_position(self) -> Tuple[int, int]:
+        """Returns the center position the text should be in"""
+        return (max(0, self.screen.get_rect()[2] // 2 - self.TEXT.get_rect()[2] // 2),
+                max(0, self.screen.get_rect()[3] // 2 - self.TEXT.get_rect()[3] // 2))
+
     def clear_lines(self):
-        pass
+        for index, line in enumerate(self.grid.blocks):
+            should_clear = True
+            for block in line:
+                if not block.occupied:
+                    should_clear = False
+            if should_clear:
+                self.clear_line(index)
+
+    def clear_line(self, line_num):
+        for piece in self.game_objects:
+            new_pos = []
+            for pos in piece.position:
+                self.grid.blocks[pos[0]][pos[1]].occupied = False
+                if pos[0] != line_num:
+                    if pos[0] < line_num:
+                        pos[0] += 1
+                    new_pos.append(pos)
+            piece.position = new_pos
+            for pos in piece.position:
+                self.grid.occupy_block(pos)
+
+
+
+
+
