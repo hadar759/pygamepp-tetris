@@ -1,3 +1,4 @@
+import copy
 from typing import List, Tuple
 
 import pygame
@@ -51,7 +52,7 @@ class Piece(GridGameObject):
 
     def gravitate(self, grid: Grid):
         illegal_move = False
-        old_position = self.position
+        old_position = copy.deepcopy(self.position)
         for pos in self.position:
             pos[0] += 1
             if not grid.is_a_legal_move(pos):

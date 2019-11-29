@@ -30,7 +30,7 @@ class TetrisGame(Game):
                  background_path: Optional[str] = None):
         super().__init__(width, height, refresh_rate, background_path)
         self.cur_piece: Piece = None
-        self.score = 999999
+        self.score = 42069
         self.grid = TetrisGrid()
         self.move_variables: Dict[str, bool] = {"right_das": False,
                                                 "left_das": False,
@@ -44,7 +44,7 @@ class TetrisGame(Game):
         # Every event that has to do with moving the piece
         self.create_timer(self.GRAVITY_EVENT, 500)
         self.set_event_handler(self.GRAVITY_EVENT, self.gravitate)
-        self.create_timer(self.MANUAL_DROP, 20)
+        self.create_timer(self.MANUAL_DROP, 5)
         self.set_event_handler(self.MANUAL_DROP, self.manual_drop)
         self.set_event_handler(self.DAS_EVENT, self.start_DAS)
         self.set_event_handler(self.ARR_EVENT, self.start_ARR)
@@ -58,14 +58,14 @@ class TetrisGame(Game):
         self.running = True
         self.cur_piece = None
 
+        self.grid.display_borders(self.screen)
         while self.running:
-            self.grid.display_borders(self.screen)
+
             if self.cur_piece is None:
                 for key in self.move_variables:
                     self.move_variables[key] = False
                 self.cur_piece = IPiece()
                 self.game_objects.append(self.cur_piece)
-
             super().run()
             self.should_freeze_piece()
             self.clear_lines()
