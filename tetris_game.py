@@ -49,6 +49,7 @@ class TetrisGame(Game):
         self.set_event_handler(self.DAS_EVENT, self.start_DAS)
         self.set_event_handler(self.ARR_EVENT, self.start_ARR)
         self.set_event_handler(pygame.KEYUP, self.key_up)
+        self.set_event_handler(pygame.KEYDOWN, self.key_pressed)
         self.running = True
         self.cur_piece = None
 
