@@ -11,7 +11,6 @@ class TetrisGrid(Grid):
 
     def display_borders(self, screen: pygame.Surface):
         block_size = 50
-        temp_count = 0
         for row in self.blocks:
             for block in row:
                 block_proportions = block.position
@@ -34,26 +33,30 @@ class TetrisGrid(Grid):
                                  (block_proportions[0] + block_size, block_proportions[1]),
                                  (block_proportions[0] + block_size, block_proportions[1] + 10))
                 pygame.draw.line(screen, Colors.GREY,
-                                 (block_proportions[0] + block_size, block_proportions[1] + block_size)
-                                 , (block_proportions[0] + block_size - 10, block_proportions[1] + block_size))
+                                 (block_proportions[0] + block_size,
+                                  block_proportions[1] + block_size)
+                                 , (block_proportions[0] + block_size - 10,
+                                    block_proportions[1] + block_size))
                 pygame.draw.line(screen, Colors.GREY,
-                                 (block_proportions[0] + block_size, block_proportions[1] + block_size),
-                                 (block_proportions[0] + block_size, block_proportions[1] + block_size - 10))
+                                 (block_proportions[0] + block_size,
+                                  block_proportions[1] + block_size),
+                                 (block_proportions[0] + block_size,
+                                  block_proportions[1] + block_size - 10))
                 pygame.draw.line(screen, Colors.GREY,
                                  (block_proportions[0], block_proportions[1] + block_size),
-                                 (block_proportions[0] + 10, block_proportions[1] + block_size - 10))
+                                 (block_proportions[0] + 10, block_proportions[1] + block_size))
                 pygame.draw.line(screen, Colors.GREY,
                                  (block_proportions[0], block_proportions[1] + block_size),
                                  (block_proportions[0], block_proportions[1] + block_size - 10))
                 pygame.draw.line(screen, Colors.DARK_GREY,
                                  (block_proportions[0] + 10, block_proportions[1] + block_size),
-                                 (block_proportions[0] + block_size - 10, block_proportions[1] + block_size))
-            temp_count += 1
-        pygame.display.flip()
+                                 (block_proportions[0] + block_size - 10,
+                                  block_proportions[1] + block_size))
 
-    @staticmethod
-    def reset_screen(screen: pygame.Surface):
+    def reset_screen(self, screen: pygame.Surface):
         screen.fill(Colors.BLACK)
+        self.display_borders(screen)
+
 
     def freeze_piece(self, piece: Piece):
         for pos in piece.position:
