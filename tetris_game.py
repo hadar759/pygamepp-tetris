@@ -8,9 +8,8 @@ from tetris_piece import Piece
 from tetris_grid import TetrisGrid
 from i_piece import IPiece
 from colors import Colors
-# TODO make hard drop better, keep track of score (easy, but need to increase the screen size).
-# TODO work on implementing 7 bag, and showing it, showing the score, making pieces flash when clearing
-# TODO maybe make the game a bit smoother (buffer inputs etc), WORK ON WALL KICKS
+# TODO keep track of score (easy, but need to increase the screen size), and show it.
+# TODO work on implementing 7 bag, and showing it. WORK ON WALL KICKS
 
 
 class TetrisGame(Game):
@@ -54,17 +53,19 @@ class TetrisGame(Game):
         self.cur_piece = None
 
         self.grid.display_borders(self.screen)
-        while self.running:
+        super().run()
 
-            if self.cur_piece is None:
-                for key in self.move_variables:
-                    self.move_variables[key] = False
-                self.cur_piece = IPiece()
-                self.game_objects.append(self.cur_piece)
-            super().run()
-            if self.cur_piece:
-                self.should_freeze_piece()
-            self.clear_lines()
+    def start_of_loop(self):
+        if self.cur_piece is None:
+            for key in self.move_variables:
+                self.move_variables[key] = False
+            self.cur_piece = IPiece()
+            self.game_objects.append(self.cur_piece)
+
+    def end_of_loop(self):
+        if self.cur_piece:
+            self.should_freeze_piece()
+        self.clear_lines()
 
     def hard_drop(self):
         while self.cur_piece is not None:
@@ -157,12 +158,12 @@ class TetrisGame(Game):
 
     def game_over(self):
         pygame.time.wait(1000)
-        self.fade()
+        self.fade(7)
         self.screen.blit(self.TEXT, self.calculate_center_name_position())
         pygame.display.flip()
 
         pygame.time.wait(2500)
-        self.fade()
+        self.fade(7)
         self.running = False
         self.background_image = pygame.image.load("./resources/end-screen.png")
         self.screen = pygame.display.set_mode((self.background_image.get_size()[0],
@@ -177,14 +178,14 @@ class TetrisGame(Game):
                                                                                 True,
                                                                                 Colors.WHITE)
 
-    def fade(self):
+    def fade(self, delay):
         fade = pygame.Surface((self.screen.get_rect()[2], self.screen.get_rect()[3]))
         fade.fill((0, 0, 0))
         for alpha in range(0, 100):
             fade.set_alpha(alpha)
             self.screen.blit(fade, (0, 0))
             pygame.display.update()
-            pygame.time.delay(7)
+            pygame.time.delay(delay)
 
     def calculate_center_name_position(self) -> Tuple[int, int]:
         """Returns the center position the text should be in"""
