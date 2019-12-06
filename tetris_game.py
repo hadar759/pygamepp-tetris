@@ -8,9 +8,9 @@ from tetris_piece import Piece
 from tetris_grid import TetrisGrid
 from i_piece import IPiece
 from colors import Colors
-# TODO implement hard drop, keep track of score (easy, but need to increase the screen size).
-# Todo work on implementing 7 bag, and showing it, showing the score, making pieces flash when clearing
-# Todo maybe make the game a bit smoother (buffer inputs etc), WORK ON WALL KICKS
+# TODO make hard drop better, keep track of score (easy, but need to increase the screen size).
+# TODO work on implementing 7 bag, and showing it, showing the score, making pieces flash when clearing
+# TODO maybe make the game a bit smoother (buffer inputs etc), WORK ON WALL KICKS
 
 
 class TetrisGame(Game):
@@ -44,17 +44,11 @@ class TetrisGame(Game):
         # Every event that has to do with moving the piece
         self.create_timer(self.GRAVITY_EVENT, 500)
         self.set_event_handler(self.GRAVITY_EVENT, self.gravitate)
-        self.create_timer(self.MANUAL_DROP, 5)
+        self.create_timer(self.MANUAL_DROP, 20)
         self.set_event_handler(self.MANUAL_DROP, self.manual_drop)
         self.set_event_handler(self.DAS_EVENT, self.start_DAS)
         self.set_event_handler(self.ARR_EVENT, self.start_ARR)
-        self.set_event_handler(pygame.K_SPACE, self.key_space)
         self.set_event_handler(pygame.KEYUP, self.key_up)
-        self.set_event_handler(pygame.K_DOWN, self.key_down)
-        self.set_event_handler(pygame.K_RIGHT, self.key_right)
-        self.set_event_handler(pygame.K_LEFT, self.key_left)
-        self.set_event_handler(pygame.K_z, self.key_z)
-        self.set_event_handler(pygame.K_x, self.key_x)
         self.running = True
         self.cur_piece = None
 
@@ -67,8 +61,14 @@ class TetrisGame(Game):
                 self.cur_piece = IPiece()
                 self.game_objects.append(self.cur_piece)
             super().run()
-            self.should_freeze_piece()
+            if self.cur_piece:
+                self.should_freeze_piece()
             self.clear_lines()
+
+    def hard_drop(self):
+        while self.cur_piece is not None:
+            self.gravitate()
+            self.should_freeze_piece()
 
     def gravitate(self):
         self.grid.reset_screen(self.screen)
@@ -80,6 +80,20 @@ class TetrisGame(Game):
 
     def key_down(self):
         self.move_variables["manual_drop"] = True
+
+    def key_pressed(self, event: pygame.event.EventType):
+        if event.key == pygame.K_SPACE:
+            self.hard_drop()
+        elif event.key == pygame.K_DOWN:
+            self.key_down()
+        elif event.key == pygame.K_RIGHT:
+            self.key_right()
+        elif event.key == pygame.K_LEFT:
+            self.key_left()
+        elif event.key == pygame.K_z:
+            self.key_z()
+        elif event.key == pygame.K_x:
+            self.key_x()
 
     def key_up(self):
         if self.last_pressed_key == pygame.K_DOWN:
@@ -125,13 +139,6 @@ class TetrisGame(Game):
     def key_x(self):
         self.grid.reset_screen(self.screen)
         self.cur_piece.rotate(pygame.K_x, self.grid)
-
-    def key_space(self):
-        self.move_variables["hard_drop"] = True
-
-    def hard_drop(self):
-        if self.move_variables["hard_drop"]:
-            self.gravitate()
 
     def should_freeze_piece(self):
         for pos in self.cur_piece.position:
@@ -204,8 +211,3 @@ class TetrisGame(Game):
             piece.position = new_pos
             for pos in piece.position:
                 self.grid.occupy_block(pos)
-
-
-
-
-
