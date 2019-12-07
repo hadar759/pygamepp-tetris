@@ -1,19 +1,22 @@
 from typing import Tuple, Optional, Dict
+import random
 
 import pygame
 from pygame import USEREVENT
 from pygamepp.game import Game
 
-from tetris_piece import Piece
+from pieces import *
+from pieces.tetris_piece import Piece
 from tetris_grid import TetrisGrid
-from i_piece import IPiece
 from colors import Colors
-# TODO keep track of score (easy, but need to increase the screen size), and show it.
-# TODO work on implementing 7 bag, and showing it. WORK ON WALL KICKS
+# TODO GHOST PIECE, showing next pieces, WORK ON WALL KICKS
 
 
 class TetrisGame(Game):
     TEXT = pygame.font.Font("./resources/joystix-monospace.ttf", 60).render("YOU LOSE",
+                                                                            True,
+                                                                            Colors.WHITE)
+    SCORE_TEXT = pygame.font.Font("./resources/joystix-monospace.ttf", 19).render("SCORE:",
                                                                             True,
                                                                             Colors.WHITE)
     GRAVITY_EVENT = USEREVENT + 1
@@ -29,7 +32,8 @@ class TetrisGame(Game):
                  background_path: Optional[str] = None):
         super().__init__(width, height, refresh_rate, background_path)
         self.cur_piece: Piece = None
-        self.score = 42069
+        self.level = 0
+        self.score = 0
         self.grid = TetrisGrid()
         self.move_variables: Dict[str, bool] = {"right_das": False,
                                                 "left_das": False,
@@ -39,7 +43,6 @@ class TetrisGame(Game):
                                                 "manual_drop": False}
 
     def run(self):
-        self.cur_piece = IPiece()
         # Every event that has to do with moving the piece
         self.create_timer(self.GRAVITY_EVENT, 500)
         self.set_event_handler(self.GRAVITY_EVENT, self.gravitate)
@@ -59,18 +62,29 @@ class TetrisGame(Game):
         if self.cur_piece is None:
             for key in self.move_variables:
                 self.move_variables[key] = False
-            self.cur_piece = IPiece()
+            self.cur_piece = random.choice(
+                [IPiece(), TPiece(), ZPiece(), SPiece(), LPiece(), JPiece(), OPiece()])
             self.game_objects.append(self.cur_piece)
 
     def end_of_loop(self):
         if self.cur_piece:
             self.should_freeze_piece()
         self.clear_lines()
+        self.show_score()
+
+    def show_score(self):
+        text = self.render_score(20)
+        score_place = self.calculate_center_name_position(100 - text.get_rect()[2] // 2
+                                                          , 50 - text.get_rect()[3] // 2)
+        self.screen.blit(self.SCORE_TEXT, (500, 10))
+        self.screen.blit(text, (500 + self.SCORE_TEXT.get_rect()[2], 10))
 
     def hard_drop(self):
         while self.cur_piece is not None:
             self.gravitate()
+            self.score += 2
             self.should_freeze_piece()
+        self.clear_lines()
 
     def gravitate(self):
         self.grid.reset_screen(self.screen)
@@ -78,6 +92,7 @@ class TetrisGame(Game):
 
     def manual_drop(self):
         if self.move_variables["manual_drop"]:
+            self.score += 1
             self.gravitate()
 
     def key_down(self):
@@ -159,7 +174,9 @@ class TetrisGame(Game):
     def game_over(self):
         pygame.time.wait(1000)
         self.fade(7)
-        self.screen.blit(self.TEXT, self.calculate_center_name_position())
+        self.screen.blit(self.TEXT, self.calculate_center_name_position(
+            self.screen.get_rect()[2] // 2 - self.TEXT.get_rect()[2] // 2,
+            self.screen.get_rect()[3] // 2 - self.TEXT.get_rect()[3] // 2))
         pygame.display.flip()
 
         pygame.time.wait(2500)
@@ -169,17 +186,18 @@ class TetrisGame(Game):
         self.screen = pygame.display.set_mode((self.background_image.get_size()[0],
                                                self.background_image.get_size()[1]))
         self.screen.blit(self.background_image, (0, 0))
-        self.screen.blit(self.render_score(), (600, 75))
+        self.screen.blit(self.render_score(50), (600, 75))
         pygame.display.flip()
         pygame.time.wait(5000)
 
-    def render_score(self):
-        return pygame.font.Font("./resources/joystix-monospace.ttf", 50).render(str(self.score),
+    def render_score(self, font_size: int):
+        return pygame.font.Font("./resources/joystix-monospace.ttf", font_size).render(str(self.score),
                                                                                 True,
                                                                                 Colors.WHITE)
 
     def fade(self, delay):
         fade = pygame.Surface((self.screen.get_rect()[2], self.screen.get_rect()[3]))
+        print(self.screen.get_rect()[2], self.screen.get_rect()[3])
         fade.fill((0, 0, 0))
         for alpha in range(0, 100):
             fade.set_alpha(alpha)
@@ -187,19 +205,28 @@ class TetrisGame(Game):
             pygame.display.update()
             pygame.time.delay(delay)
 
-    def calculate_center_name_position(self) -> Tuple[int, int]:
+    def calculate_center_name_position(self, x_space: int, y_space: int) -> Tuple[int, int]:
         """Returns the center position the text should be in"""
-        return (max(0, self.screen.get_rect()[2] // 2 - self.TEXT.get_rect()[2] // 2),
-                max(0, self.screen.get_rect()[3] // 2 - self.TEXT.get_rect()[3] // 2))
+        return max(0, x_space), max(0, y_space)
 
     def clear_lines(self):
+        num_of_lines_cleared = 0
         for index, line in enumerate(self.grid.blocks):
             should_clear = True
             for block in line:
                 if not block.occupied:
                     should_clear = False
             if should_clear:
+                num_of_lines_cleared += 1
                 self.clear_line(index)
+        if num_of_lines_cleared == 1:
+            self.score += 40 * (self.level + 1)
+        elif num_of_lines_cleared == 2:
+            self.score += 100 * (self.level + 1)
+        elif num_of_lines_cleared == 3:
+            self.score += 300 * (self.level + 1)
+        elif num_of_lines_cleared == 4:
+            self.score += 1200 * (self.level + 1)
 
     def clear_line(self, line_num):
         for piece in self.game_objects:
