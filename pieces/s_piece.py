@@ -1,12 +1,12 @@
 import pygame
 
-from tetris_piece import Piece
+from pieces.tetris_piece import Piece
 
 
-class IPiece(Piece):
+class SPiece(Piece):
     def __init__(self):
-        self.sprite = pygame.image.load(r"./resources/tetris-sprite.png")
-        super().__init__(self.sprite, [[0, 4], [1, 4], [2, 4], [3, 4]])
+        self.sprite = pygame.image.load(r"./resources/spiece-sprite.png")
+        super().__init__(self.sprite, [[1, 3], [1, 4], [0, 4], [0, 5]])
 
     def rotate_clockwise(self, grid):
         illegal_rotation = False
