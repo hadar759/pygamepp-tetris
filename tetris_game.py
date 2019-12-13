@@ -9,6 +9,8 @@ from pieces import *
 from pieces.tetris_piece import Piece
 from tetris_grid import TetrisGrid
 from colors import Colors
+
+
 # TODO GHOST PIECE, showing next pieces, WORK ON WALL KICKS
 
 
@@ -17,8 +19,8 @@ class TetrisGame(Game):
                                                                             True,
                                                                             Colors.WHITE)
     SCORE_TEXT = pygame.font.Font("./resources/joystix-monospace.ttf", 19).render("SCORE:",
-                                                                            True,
-                                                                            Colors.WHITE)
+                                                                                  True,
+                                                                                  Colors.WHITE)
     GRAVITY_EVENT = USEREVENT + 1
     DAS_EVENT = USEREVENT + 2
     ARR_EVENT = USEREVENT + 3
@@ -32,8 +34,10 @@ class TetrisGame(Game):
                  background_path: Optional[str] = None):
         super().__init__(width, height, refresh_rate, background_path)
         self.cur_piece: Piece = None
+        self.held_piece: Piece = None
         self.level = 0
         self.score = 0
+        self.cur_seven_bag = []
         self.grid = TetrisGrid()
         self.move_variables: Dict[str, bool] = {"right_das": False,
                                                 "left_das": False,
@@ -62,8 +66,8 @@ class TetrisGame(Game):
         if self.cur_piece is None:
             for key in self.move_variables:
                 self.move_variables[key] = False
-            self.cur_piece = random.choice(
-                [IPiece(), TPiece(), ZPiece(), SPiece(), LPiece(), JPiece(), OPiece()])
+            self.generate_seven_bag()
+            self.cur_piece = self.cur_seven_bag.pop(0)
             self.game_objects.append(self.cur_piece)
 
     def end_of_loop(self):
@@ -71,6 +75,20 @@ class TetrisGame(Game):
             self.should_freeze_piece()
         self.clear_lines()
         self.show_score()
+
+    def generate_seven_bag(self):
+        fourteen_piece_set = [IPiece(), TPiece(), ZPiece(), SPiece(), LPiece(), JPiece(), OPiece(),
+                              IPiece(), TPiece(), ZPiece(), SPiece(), LPiece(), JPiece(), OPiece()]
+        if not self.cur_seven_bag:
+            seven_bag = []
+            while len(seven_bag) <= 14:
+                seven_bag.append(random.choice(fourteen_piece_set))
+            self.cur_seven_bag = seven_bag
+        elif len(self.cur_seven_bag) < 14:
+            shared_type = type(self.cur_seven_bag[-1])
+            if type(self.cur_seven_bag[-2]) == shared_type:
+                fourteen_piece_set = [x for x in fourteen_piece_set if type(x) != shared_type]
+            self.cur_seven_bag.append(random.choice(fourteen_piece_set))
 
     def show_score(self):
         text = self.render_score(20)
@@ -111,6 +129,8 @@ class TetrisGame(Game):
             self.key_z()
         elif event.key == pygame.K_x:
             self.key_x()
+        elif event.key == pygame.K_c:
+            self.key_c()
 
     def key_up(self):
         if self.last_pressed_key == pygame.K_DOWN:
@@ -134,14 +154,14 @@ class TetrisGame(Game):
                 self.grid.reset_screen(self.screen)
                 self.cur_piece.move(pygame.K_LEFT, self.grid)
                 self.create_timer(self.DAS_EVENT, 30, True)
-    
+
     def key_right(self):
         self.grid.reset_screen(self.screen)
         pygame.time.set_timer(self.ARR_EVENT, 100, True)
         self.move_variables["key_down"] = True
         self.move_variables["right_das"] = True
         self.cur_piece.move(pygame.K_RIGHT, self.grid)
-        
+
     def key_left(self):
         self.grid.reset_screen(self.screen)
         pygame.time.set_timer(self.ARR_EVENT, 140, True)
@@ -156,6 +176,16 @@ class TetrisGame(Game):
     def key_x(self):
         self.grid.reset_screen(self.screen)
         self.cur_piece.rotate(pygame.K_x, self.grid)
+
+    def key_c(self):
+        if not self.held_piece:
+            self.held_piece = self.cur_piece
+            self.game_objects.remove(self.cur_piece)
+            self.cur_piece = self.cur_seven_bag.pop(0)
+        else:
+            self.game_objects.remove(self.cur_piece)
+            self.held_piece, self.cur_piece = type(self.cur_piece)(), type(self.held_piece)()
+        self.game_objects.append(self.cur_piece)
 
     def should_freeze_piece(self):
         for pos in self.cur_piece.position:
@@ -191,9 +221,10 @@ class TetrisGame(Game):
         pygame.time.wait(5000)
 
     def render_score(self, font_size: int):
-        return pygame.font.Font("./resources/joystix-monospace.ttf", font_size).render(str(self.score),
-                                                                                True,
-                                                                                Colors.WHITE)
+        return pygame.font.Font("./resources/joystix-monospace.ttf", font_size).render(
+            str(self.score),
+            True,
+            Colors.WHITE)
 
     def fade(self, delay):
         fade = pygame.Surface((self.screen.get_rect()[2], self.screen.get_rect()[3]))
@@ -219,6 +250,7 @@ class TetrisGame(Game):
             if should_clear:
                 num_of_lines_cleared += 1
                 self.clear_line(index)
+
         if num_of_lines_cleared == 1:
             self.score += 40 * (self.level + 1)
         elif num_of_lines_cleared == 2:
