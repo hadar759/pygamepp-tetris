@@ -4,6 +4,8 @@ from pieces.tetris_piece import Piece
 
 
 class SPiece(Piece):
+    PIVOT_POINT = 1
+
     def __init__(self):
         self.sprite = pygame.image.load(r"./resources/spiece-sprite.png")
         super().__init__(self.sprite, [[1, 3], [1, 4], [0, 4], [0, 5]])
@@ -11,7 +13,7 @@ class SPiece(Piece):
     def rotate_clockwise(self, grid):
         illegal_rotation = False
         old_positions = self.position[:]
-        pivot_point = self.position[1]
+        pivot_point = self.position[self.PIVOT_POINT]
         for i in range(len(self.position)):
             self.position[i] = self.rotated_piece_position(self.position[i],
                                                            pivot_point,
@@ -27,7 +29,7 @@ class SPiece(Piece):
     def rotate_counter_clockwise(self, grid):
         illegal_rotation = False
         old_positions = self.position[:]
-        pivot_point = self.position[1]
+        pivot_point = self.position[self.PIVOT_POINT]
         for i in range(len(self.position)):
             self.position[i] = self.rotated_piece_position(self.position[i],
                                                            pivot_point,

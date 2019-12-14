@@ -51,14 +51,27 @@ class Piece(GridGameObject):
         pass
 
     def gravitate(self, grid: Grid):
+        self.position = self.move_down(grid, self.position)
+
+    def move_down(self, grid: Grid, position: List[List[int]]):
         illegal_move = False
-        old_position = copy.deepcopy(self.position)
-        for pos in self.position:
+        old_position = copy.deepcopy(position)
+        changed_position = copy.deepcopy(position)
+        for pos in changed_position:
             pos[0] += 1
             if not grid.is_a_legal_move(pos):
                 illegal_move = True
         if illegal_move:
-            self.position = old_position
+            return old_position
+        return changed_position
+
+    def get_lowest_position(self, grid: Grid):
+        old_position = copy.deepcopy(self.position)
+        changed_position = self.move_down(grid, self.position)
+        while old_position != changed_position:
+            old_position = changed_position
+            changed_position = self.move_down(grid, changed_position)
+        return changed_position
 
     def rotated_piece_position(self, point: List[int], pivot_point: List[int],
                                rotation_matrix: Tuple[List[int], List[int]]) -> List[int]:
