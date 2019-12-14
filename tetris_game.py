@@ -1,3 +1,4 @@
+import copy
 from typing import Tuple, Optional, Dict
 import random
 
@@ -12,7 +13,6 @@ from colors import Colors
 
 
 # TODO GHOST PIECE, showing next pieces, WORK ON WALL KICKS
-
 
 class TetrisGame(Game):
     TEXT = pygame.font.Font("./resources/joystix-monospace.ttf", 60).render("YOU LOSE",
@@ -35,6 +35,7 @@ class TetrisGame(Game):
         super().__init__(width, height, refresh_rate, background_path)
         self.cur_piece: Piece = None
         self.held_piece: Piece = None
+        self.ghost_piece: Piece = None
         self.level = 0
         self.score = 0
         self.cur_seven_bag = []
@@ -69,6 +70,19 @@ class TetrisGame(Game):
             self.generate_seven_bag()
             self.cur_piece = self.cur_seven_bag.pop(0)
             self.game_objects.append(self.cur_piece)
+            self.initialize_ghost_piece()
+
+    def initialize_ghost_piece(self):
+        if self.ghost_piece in self.game_objects:
+            self.game_objects.remove(self.ghost_piece)
+
+        self.ghost_piece = type(self.cur_piece)()
+        self.ghost_piece.sprite.set_alpha(255)
+        self.update_ghost_position()
+        self.game_objects.append(self.ghost_piece)
+
+    def update_ghost_position(self):
+        self.ghost_piece.position = self.cur_piece.get_lowest_position(self.grid)
 
     def end_of_loop(self):
         if self.cur_piece:
@@ -79,16 +93,24 @@ class TetrisGame(Game):
     def generate_seven_bag(self):
         fourteen_piece_set = [IPiece(), TPiece(), ZPiece(), SPiece(), LPiece(), JPiece(), OPiece(),
                               IPiece(), TPiece(), ZPiece(), SPiece(), LPiece(), JPiece(), OPiece()]
+        added = False
+
         if not self.cur_seven_bag:
             seven_bag = []
             while len(seven_bag) <= 14:
                 seven_bag.append(random.choice(fourteen_piece_set))
             self.cur_seven_bag = seven_bag
+
         elif len(self.cur_seven_bag) < 14:
-            shared_type = type(self.cur_seven_bag[-1])
-            if type(self.cur_seven_bag[-2]) == shared_type:
-                fourteen_piece_set = [x for x in fourteen_piece_set if type(x) != shared_type]
-            self.cur_seven_bag.append(random.choice(fourteen_piece_set))
+            for piece in fourteen_piece_set:
+                if piece not in map(type, fourteen_piece_set):
+                    self.cur_seven_bag.append(piece)
+                    added = True
+            if not added:
+                shared_type = type(self.cur_seven_bag[-1])
+                if type(self.cur_seven_bag[-2]) == shared_type:
+                    fourteen_piece_set = [x for x in fourteen_piece_set if type(x) != shared_type]
+                self.cur_seven_bag.append(random.choice(fourteen_piece_set))
 
     def show_score(self):
         text = self.render_score(20)
@@ -119,18 +141,21 @@ class TetrisGame(Game):
     def key_pressed(self, event: pygame.event.EventType):
         if event.key == pygame.K_SPACE:
             self.hard_drop()
-        elif event.key == pygame.K_DOWN:
-            self.key_down()
-        elif event.key == pygame.K_RIGHT:
-            self.key_right()
-        elif event.key == pygame.K_LEFT:
-            self.key_left()
-        elif event.key == pygame.K_z:
-            self.key_z()
-        elif event.key == pygame.K_x:
-            self.key_x()
         elif event.key == pygame.K_c:
             self.key_c()
+        else:
+            if event.key == pygame.K_DOWN:
+                self.key_down()
+            elif event.key == pygame.K_RIGHT:
+                self.key_right()
+            elif event.key == pygame.K_LEFT:
+                self.key_left()
+            elif event.key == pygame.K_z:
+                self.key_z()
+            elif event.key == pygame.K_x:
+                self.key_x()
+            self.update_ghost_position()
+
 
     def key_up(self):
         if self.last_pressed_key == pygame.K_DOWN:
@@ -154,6 +179,7 @@ class TetrisGame(Game):
                 self.grid.reset_screen(self.screen)
                 self.cur_piece.move(pygame.K_LEFT, self.grid)
                 self.create_timer(self.DAS_EVENT, 30, True)
+        self.update_ghost_position()
 
     def key_right(self):
         self.grid.reset_screen(self.screen)
@@ -186,6 +212,7 @@ class TetrisGame(Game):
             self.game_objects.remove(self.cur_piece)
             self.held_piece, self.cur_piece = type(self.cur_piece)(), type(self.held_piece)()
         self.game_objects.append(self.cur_piece)
+        self.initialize_ghost_piece()
 
     def should_freeze_piece(self):
         for pos in self.cur_piece.position:
