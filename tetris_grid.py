@@ -58,5 +58,4 @@ class TetrisGrid(Grid):
 
     def freeze_piece(self, piece: Piece):
         for pos in piece.position:
-            print(pos[0], pos[1])
             self.blocks[pos[0]][pos[1]].occupied = True
