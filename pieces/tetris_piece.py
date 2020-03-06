@@ -12,15 +12,16 @@ class Piece(GridGameObject):
     RIGHT_BORDER = 9
     LEFT_BORDER = 0
     LOWER_BORDER = 19
+    PIVOT_POINT: int
 
     def __init__(self, sprite: pygame.sprite, position: List):
         super().__init__(sprite, position, 50)
 
-    def rotate(self, key, grid):
+    def call_rotation_functions(self, key, grid):
         if key == pygame.K_x:
-            self.rotate_clockwise(grid)
+            self.rotate(grid, self.CLOCKWISE_TRANSFORMATION_MATRIX)
         elif key == pygame.K_z:
-            self.rotate_counter_clockwise(grid)
+            self.rotate(grid, self.COUNTER_CLOCKWISE_TRANSFORMATION_MATRIX)
 
     def move(self, key, grid: Grid):
         position_change = 0
@@ -44,11 +45,55 @@ class Piece(GridGameObject):
             for i in range(len(self.position)):
                 self.position[i][1] += position_change
 
-    def rotate_clockwise(self, grid):
-        pass
+    def rotate(self, grid, rotation_matrix, times_failed=0):
+        illegal_rotation = False
+        old_positions = self.position[:]
+        too_low = False
+        pivot_point = self.position[self.PIVOT_POINT]
+        for i in range(len(self.position)):
+            self.position[i] = self.rotated_piece_position(self.position[i],
+                                                           pivot_point,
+                                                           rotation_matrix)
+            # In case the piece will be underground after the rotation
+            if self.position[i][0] > self.LOWER_BORDER:
+                too_low = True
 
-    def rotate_counter_clockwise(self, grid):
-        pass
+            # In case the piece will be out of bounds, or be inside another piece
+            elif (self.position[i][1] < self.LEFT_BORDER
+                    or self.position[i][1] > self.RIGHT_BORDER
+                    or grid.blocks[self.position[i][0]][self.position[i][1]].occupied):
+                illegal_rotation = True
+
+        if too_low:
+            self.position = old_positions
+            # Move each block of the piece up by 1 row
+            for pos in self.position:
+                pos[0] -= 1
+            self.rotate(grid, rotation_matrix)
+
+        # Standard TGM wall kick rotation
+        if illegal_rotation:
+            self.position = old_positions
+            if times_failed == 0:
+                # Try to move the piece left and then rotate
+                self.move(pygame.K_LEFT, grid)
+                self.rotate(grid, rotation_matrix, times_failed + 1)
+            elif times_failed == 1:
+                # Try to move the piece right and then rotate
+                self.move(pygame.K_RIGHT, grid)
+                self.rotate(grid, rotation_matrix, times_failed + 1)
+            elif times_failed == 2:
+                # ONLY FOR THE I PIECE - triggers in case it hits the left wall and needs to be
+                # pushed right again because of the pivot point position
+                self.move(pygame.K_RIGHT, grid)
+                self.rotate(grid, rotation_matrix, times_failed + 1)
+            elif times_failed == 3:
+                # ONLY FOR THE I PIECE - triggers in case it hits the right wall and needs
+                # to be pushed left twice because of the pivot point position
+                self.move(pygame.K_LEFT, grid)
+                self.move(pygame.K_LEFT, grid)
+                self.rotate(grid, rotation_matrix, times_failed + 1)
+
 
     def gravitate(self, grid: Grid):
         self.position = self.move_down(grid, self.position)
@@ -74,13 +119,13 @@ class Piece(GridGameObject):
         return changed_position
 
     def rotated_piece_position(self, point: List[int], pivot_point: List[int],
-                               rotation_matrix: Tuple[List[int], List[int]]) -> List[int]:
+                               rotation_matrix: Tuple[Tuple[int, int], Tuple[int, int]]) -> List[int]:
         relative_vector = self.get_relative_vector(point, pivot_point)
         transformed_vector = self.get_transformed_vector(rotation_matrix, relative_vector)
         return [pivot_point[0] + transformed_vector[0], pivot_point[1] + transformed_vector[1]]
 
     @staticmethod
-    def get_transformed_vector(rotation_matrix: Tuple[List[int], List[int]],
+    def get_transformed_vector(rotation_matrix: Tuple[Tuple[int, int], Tuple[int, int]],
                                relative_vector: Tuple[int, int]) -> Tuple[int, int]:
         transformed_x = rotation_matrix[0][0] * relative_vector[0] + rotation_matrix[0][1] * relative_vector[1]
         transformed_y = rotation_matrix[1][0] * relative_vector[0] + rotation_matrix[1][1] * relative_vector[1]

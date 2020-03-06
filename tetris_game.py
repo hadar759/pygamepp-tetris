@@ -10,10 +10,8 @@ from pieces import *
 from pieces.tetris_piece import Piece
 from tetris_grid import TetrisGrid
 from colors import Colors
-
-# TODO make a starting screen, ask for the number of lines to win in sprint and find a way to make it all work
-# TODO if i want: make the ghost piece more ghost-y (less opacity), maybe wall kicks?? (prob not
-# TODO cause no one knows how the algorithm works), i dunno think of something else
+.
+# TODO if i want: make the ghost piece more ghost-y (less opacity) + i dunno think of more features
 
 
 class TetrisGame(Game):
@@ -26,9 +24,6 @@ class TetrisGame(Game):
     SCORE_TEXT = pygame.font.Font("./resources/joystix-monospace.ttf", 19).render("SCORE:",
                                                                                   True,
                                                                                   Colors.WHITE)
-    LINE_TEXT = pygame.font.Font("./resources/joystix-monospace.ttf", 19).render("LINES:",
-                                                                                  True,
-                                                                                  Colors.WHITE)
     TIME_TEXT = pygame.font.Font("./resources/joystix-monospace.ttf", 19).render("TIME:",
                                                                                   True,
                                                                                   Colors.WHITE)
@@ -38,7 +33,7 @@ class TetrisGame(Game):
     MANUAL_DROP = USEREVENT + 4
     LOCK_DELAY = USEREVENT + 5
     LOWER_BORDER = 19
-    GRAVITY_BASE_TIME = 500
+    GRAVITY_BASE_TIME = 800
     PIECES_AND_NEXT_SPRITES = {"<class 'pieces.i_piece.IPiece'>": pygame.image.load("./resources/ipiece-full-sprite.png"),
                                "<class 'pieces.j_piece.JPiece'>": pygame.image.load("./resources/jpiece-full-sprite.png"),
                                "<class 'pieces.o_piece.OPiece'>": pygame.image.load("./resources/opiece-full-sprite.png"),
@@ -52,7 +47,8 @@ class TetrisGame(Game):
                  height: int,
                  mode: str,
                  refresh_rate: int = 60,
-                 background_path: Optional[str] = None):
+                 background_path: Optional[str] = None,
+                 lines_or_level: Optional[int] = None):
         super().__init__(width, height, refresh_rate, background_path)
         self.mode = mode
         self.cur_piece: Piece = None
@@ -71,7 +67,17 @@ class TetrisGame(Game):
                                                 "manual_drop": False}
         if self.mode == "sprint":
             self.starting_time = pygame.time.get_ticks()
+            self.lines_to_finish = lines_or_level
+            self.line_text = pygame.font.Font("./resources/joystix-monospace.ttf", 19).render("LEFT:",
+                                                                                         True,
+                                                                                         Colors.WHITE)
         self.gravity_time = self.GRAVITY_BASE_TIME
+        if self.mode == "marathon":
+            self.level = lines_or_level
+            self.gravity_time -= self.level * 83
+            self.line_text = pygame.font.Font("./resources/joystix-monospace.ttf", 19).render("LINES:",
+                                                                                         True,
+                                                                                         Colors.WHITE)
         self.freeze_thingy_rename = 0
 
     def run(self):
@@ -126,11 +132,21 @@ class TetrisGame(Game):
             self.show_lines()
         self.clear_lines()
         self.show_next_pieces()
-        if self.mode == "sprint" and self.lines_cleared >= 40:
+        if self.mode == "sprint" and self.lines_cleared >= self.lines_to_finish:
             self.game_over(True)
 
     def marathon(self):
-        temp_gravity_time = (self.GRAVITY_BASE_TIME - (self.lines_cleared // 10) * 20)
+        total_time_decrease = 0
+        for i in range(self.level):
+            if i < 9:
+                total_time_decrease += 83
+            if i == 9:
+                total_time_decrease += 33
+            if 9 < i < 29:
+                total_time_decrease += 17
+
+        temp_gravity_time = (self.GRAVITY_BASE_TIME - total_time_decrease)
+
         if self.gravity_time != temp_gravity_time:
             self.gravity_time = temp_gravity_time
             self.create_timer(self.GRAVITY_EVENT, self.gravity_time)
@@ -163,14 +179,17 @@ class TetrisGame(Game):
 
     def show_time(self):
         seconds = self.render_input(20, str(self.get_current_time_since_start()))
-        self.screen.fill(0x000000, [(500 + self.LINE_TEXT.get_rect()[2], 10), (500 + self.LINE_TEXT.get_rect()[2] + 300, 40)])
+        self.screen.fill(0x000000, [(500 + self.line_text.get_rect()[2], 10), (500 + self.line_text.get_rect()[2] + 300, 40)])
         self.screen.blit(self.TIME_TEXT, (500, 10))
-        self.screen.blit(seconds, (500 + self.LINE_TEXT.get_rect()[2], 10))
+        self.screen.blit(seconds, (500 + self.line_text.get_rect()[2], 10))
 
     def show_lines(self):
-        text = self.render_input(20, str(self.lines_cleared))
-        self.screen.blit(self.LINE_TEXT, (500, 50))
-        self.screen.blit(text, (500 + self.LINE_TEXT.get_rect()[2], 50))
+        lines = self.lines_cleared
+        if self.mode == "sprint":
+            lines = self.lines_to_finish - lines
+        text = self.render_input(20, str(lines))
+        self.screen.blit(self.line_text, (500, 50))
+        self.screen.blit(text, (500 + self.line_text.get_rect()[2], 50))
 
     def hard_drop(self):
         if self.temp_freeze:
@@ -263,11 +282,11 @@ class TetrisGame(Game):
 
     def key_z(self):
         self.grid.reset_screen(self.screen)
-        self.cur_piece.rotate(pygame.K_z, self.grid)
+        self.cur_piece.call_rotation_functions(pygame.K_z, self.grid)
 
     def key_x(self):
         self.grid.reset_screen(self.screen)
-        self.cur_piece.rotate(pygame.K_x, self.grid)
+        self.cur_piece.call_rotation_functions(pygame.K_x, self.grid)
 
     def start_lock_delay(self):
         if self.should_freeze_piece():
@@ -296,8 +315,8 @@ class TetrisGame(Game):
         self.fade(7)
         if self.mode == "sprint" and win:
             self.screen.blit(self.WIN_TEXT, self.calculate_center_name_position(
-                self.screen.get_rect()[2] // 2 - self.LOSE_TEXT.get_rect()[2] // 2,
-                self.screen.get_rect()[3] // 2 - self.LOSE_TEXT.get_rect()[3] // 2))
+                self.screen.get_rect()[2] // 2 - self.WIN_TEXT.get_rect()[2] // 2,
+                self.screen.get_rect()[3] // 2 - self.WIN_TEXT.get_rect()[3] // 2))
         else:
             self.screen.blit(self.LOSE_TEXT, self.calculate_center_name_position(
                 self.screen.get_rect()[2] // 2 - self.LOSE_TEXT.get_rect()[2] // 2,
@@ -355,6 +374,9 @@ class TetrisGame(Game):
 
         if num_of_lines_cleared != 0:
             self.grid.reset_screen(self.screen)
+
+        if self.lines_cleared // 10 < (self.lines_cleared + num_of_lines_cleared) // 10:
+            self.level += 1
 
         self.lines_cleared += num_of_lines_cleared
         if num_of_lines_cleared == 1:

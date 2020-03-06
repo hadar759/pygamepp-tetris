@@ -1,14 +1,14 @@
 import ctypes
 
-import tetris_game
+import main_menu
 
 
 def main():
     user32 = ctypes.windll.user32
     width = user32.GetSystemMetrics(0)
     height = user32.GetSystemMetrics(1)
-    game = tetris_game.TetrisGame(500 + 200, 1000, "sprint", 75)
-    game.run()
+    menu = main_menu.MainMenu(width - 200, height - 100, 75, "./resources/tetris_background.jpg")
+    menu.run()
 
 
 if __name__ == "__main__":
