@@ -5,3 +5,4 @@ from .s_piece import SPiece
 from .l_piece import LPiece
 from .j_piece import JPiece
 from .o_piece import OPiece
+from .garbage_piece import GarbagePiece

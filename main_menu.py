@@ -1,10 +1,12 @@
 from typing import Optional, Tuple
 
 import pygame
-from pygamepp import Game
+
+import tetris_game
 from button import Button
 from colors import Colors
-import tetris_game
+from tetris_client import TetrisClient
+from tetris_server import TetrisServer
 
 
 class MainMenu:
@@ -24,8 +26,9 @@ class MainMenu:
     def run(self):
         self.screen.blit(self.background_image, (0, 0))
         # Very specific numbers just so they exactly fill the blocks in the background pic hahaha
-        self.create_button((self.width // 7 - 3, self.height // 2 - 3), 504, 200, Colors.BLACK, "sprint")
-        self.create_button((self.width // 5 * 3, self.height // 2 - 3), 504, 200, Colors.BLACK, "marathon")
+        self.create_button((self.width // 2 - 258, self.height // 3 - 250), 504, 200, Colors.BLACK, "sprint")
+        self.create_button((self.width // 2 - 258, self.height // 3 * 2 - 250), 504, 200, Colors.BLACK, "marathon")
+        self.create_button((self.width // 2 - 258, self.height - 250), 504, 200, Colors.BLACK, "multiplayer")
         self.show_buttons()
         self.show_text_in_buttons()
         pygame.display.flip()
@@ -43,10 +46,25 @@ class MainMenu:
                                 self.sprint()
                             elif button.text == "marathon":
                                 self.marathon()
+                            elif button.text == "multiplayer":
+                                self.multiplayer()
                             elif button.text[-1] == "L":
                                 self.start_game("sprint", button.text[:2])
+                            elif button.text == "SERVER":
+                                self.start_multiplayer(True)
+                            elif button.text == "CLIENT":
+                                self.start_multiplayer(False)
                             else:
                                 self.start_game("marathon", button.text)
+
+    def multiplayer(self):
+        self.buttons = []
+        self.screen.blit(self.background_image, (0, 0))
+        self.create_button((self.width // 3 - 300, self.height // 2 - 100), 500, 200, Colors.BLACK, "SERVER")
+        self.create_button(((self.width // 3) * 2 - 200, self.height // 2 - 100), 500, 200, Colors.BLACK, "CLIENT")
+        self.show_buttons()
+        self.show_text_in_buttons()
+        pygame.display.flip()
 
     def sprint(self):
         self.buttons = []
@@ -84,6 +102,16 @@ class MainMenu:
         self.show_buttons()
         self.show_text_in_buttons()
         pygame.display.flip()
+
+    def start_multiplayer(self, host: bool):
+        if host:
+            server_game = tetris_game.TetrisGame(500 + 200, 1000, "multiplayer", 75)
+            server = TetrisServer(server_game)
+            server.run()
+        else:
+            client_game = tetris_game.TetrisGame(500 + 200, 1000, "multiplayer", 75)
+            client = TetrisClient(client_game)
+            client.run()
 
     @staticmethod
     def start_game(mode, lines_or_level):

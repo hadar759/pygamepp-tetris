@@ -94,7 +94,6 @@ class Piece(GridGameObject):
                 self.move(pygame.K_LEFT, grid)
                 self.rotate(grid, rotation_matrix, times_failed + 1)
 
-
     def gravitate(self, grid: Grid):
         self.position = self.move_down(grid, self.position)
 

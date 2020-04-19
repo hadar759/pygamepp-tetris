@@ -1,4 +1,4 @@
-import copy
+from socket import socket
 from typing import Tuple, Optional, Dict
 import random
 
@@ -10,23 +10,25 @@ from pieces import *
 from pieces.tetris_piece import Piece
 from tetris_grid import TetrisGrid
 from colors import Colors
-.
-# TODO if i want: make the ghost piece more ghost-y (less opacity) + i dunno think of more features
 
 
 class TetrisGame(Game):
+    # Will be displayed when users lose
     LOSE_TEXT = pygame.font.Font("./resources/joystix-monospace.ttf", 60).render("YOU LOSE",
                                                                                  True,
                                                                                  Colors.WHITE)
+    # Will be displayed when users win
     WIN_TEXT = pygame.font.Font("./resources/joystix-monospace.ttf", 60).render("YOU WIN",
-                                                                                 True,
-                                                                                 Colors.WHITE)
+                                                                                True,
+                                                                                Colors.WHITE)
+    # Will be displayed before the score
     SCORE_TEXT = pygame.font.Font("./resources/joystix-monospace.ttf", 19).render("SCORE:",
                                                                                   True,
                                                                                   Colors.WHITE)
+    # Will be displayed before the time
     TIME_TEXT = pygame.font.Font("./resources/joystix-monospace.ttf", 19).render("TIME:",
-                                                                                  True,
-                                                                                  Colors.WHITE)
+                                                                                 True,
+                                                                                 Colors.WHITE)
     GRAVITY_EVENT = USEREVENT + 1
     DAS_EVENT = USEREVENT + 2
     ARR_EVENT = USEREVENT + 3
@@ -48,7 +50,8 @@ class TetrisGame(Game):
                  mode: str,
                  refresh_rate: int = 60,
                  background_path: Optional[str] = None,
-                 lines_or_level: Optional[int] = None):
+                 lines_or_level: Optional[int] = None,
+                 client_socket: Optional[socket] = None):
         super().__init__(width, height, refresh_rate, background_path)
         self.mode = mode
         self.cur_piece: Piece = None
@@ -78,6 +81,10 @@ class TetrisGame(Game):
             self.line_text = pygame.font.Font("./resources/joystix-monospace.ttf", 19).render("LINES:",
                                                                                          True,
                                                                                          Colors.WHITE)
+        if self.mode == "multiplayer":
+            self.client_socket = client_socket
+            self.lines_to_be_sent = 0
+            self.lines_received = 0
         self.freeze_thingy_rename = 0
 
     def run(self):
@@ -100,6 +107,12 @@ class TetrisGame(Game):
     def start_of_loop(self):
         if self.cur_piece is None:
             self.generate_new_piece()
+        if self.mode == "multiplayer":
+            lines_received = self.client_socket.recv(2).decode()
+            if lines_received == "W":
+                self.game_over(True)
+            elif lines_received:
+                self.lines_received += int(lines_received)
 
     def show_next_pieces(self):
         step = 200
@@ -123,6 +136,16 @@ class TetrisGame(Game):
     def end_of_loop(self):
         if self.cur_piece:
             self.temp_freeze = self.should_freeze_piece()
+        elif self.mode == "multiplayer":
+            if self.lines_received > 0:
+                if self.lines_received > self.lines_to_be_sent:
+                    self.lines_received -= self.lines_to_be_sent
+                    self.lines_to_be_sent = 0
+                elif self.lines_to_be_sent > 0:
+                    self.lines_to_be_sent -= self.lines_received
+                    self.lines_received = 0
+
+            self.add_garbage()
         if self.mode == "marathon":
             self.marathon()
             self.show_score()
@@ -130,10 +153,44 @@ class TetrisGame(Game):
         elif self.mode == "sprint":
             self.show_time()
             self.show_lines()
-        self.clear_lines()
         self.show_next_pieces()
         if self.mode == "sprint" and self.lines_cleared >= self.lines_to_finish:
             self.game_over(True)
+        if self.mode == "multiplayer":
+            self.client_socket.send(str(self.lines_to_be_sent).encode())
+            self.lines_to_be_sent = 0
+
+    def add_garbage(self):
+        hole = random.randint(0, 10)
+        if self.lines_received == 0:
+            return
+
+        for line in self.grid.blocks:
+            for block in line:
+                block.occupied = False
+
+        for piece in self.game_objects:
+            if piece == self.cur_piece or piece == self.ghost_piece:
+                continue
+            new_pos = []
+            for pos in piece.position:
+                pos[0] -= self.lines_received
+                if pos[0] < 0:
+                    self.game_over(False)
+                new_pos.append(pos)
+            piece.position = new_pos
+
+        for line in range(self.lines_received):
+            garbage_piece = GarbagePiece(self.LOWER_BORDER - line, hole)
+            self.game_objects.append(garbage_piece)
+
+        for piece in self.game_objects:
+            for pos in piece.position:
+                self.grid.occupy_block(pos)
+
+        if self.lines_received > 0:
+            self.grid.reset_screen(self.screen)
+        self.lines_received = 0
 
     def marathon(self):
         total_time_decrease = 0
@@ -211,6 +268,7 @@ class TetrisGame(Game):
         else:
             if self.freeze_thingy_rename > 0:
                 self.freeze_piece()
+                self.clear_lines()
                 self.temp_freeze = False
                 self.freeze_thingy_rename = 0
             else:
@@ -302,18 +360,21 @@ class TetrisGame(Game):
             if pos[0] >= self.LOWER_BORDER:
                 return True
 
-            elif self.grid.blocks[pos[0] + 1][pos[1]].occupied:
+            elif self.grid.blocks[pos[0] + 1][pos[1]].occupied or self.grid.blocks[pos[0]][pos[1]].occupied:
                 if pos[0] <= 0:
                     self.game_over(False)
                 return True
         return False
 
     def game_over(self, win: bool):
+        if self.mode == "multiplayer":
+            if not win:
+                self.client_socket.send("W".encode())
         if self.mode == "sprint":
             final_time = self.get_current_time_since_start()
         pygame.time.wait(1000)
         self.fade(7)
-        if self.mode == "sprint" and win:
+        if self.mode != "marathon" and win:
             self.screen.blit(self.WIN_TEXT, self.calculate_center_name_position(
                 self.screen.get_rect()[2] // 2 - self.WIN_TEXT.get_rect()[2] // 2,
                 self.screen.get_rect()[3] // 2 - self.WIN_TEXT.get_rect()[3] // 2))
@@ -387,6 +448,14 @@ class TetrisGame(Game):
             self.score += 300 * (self.level + 1)
         elif num_of_lines_cleared == 4:
             self.score += 1200 * (self.level + 1)
+
+        if self.mode == "multiplayer":
+            if num_of_lines_cleared == 2:
+                self.lines_to_be_sent = 1
+            elif num_of_lines_cleared == 3:
+                self.lines_to_be_sent = 2
+            elif num_of_lines_cleared >= 4:
+                self.lines_to_be_sent = 4 + (num_of_lines_cleared - 4) // 2
 
     def clear_line(self, line_num):
         for piece in self.game_objects:
