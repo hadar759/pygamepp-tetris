@@ -1,3 +1,8 @@
+"""
+Hadar Dagan
+31.5.2020
+v1.0
+"""
 import pygame
 
 from pieces.tetris_piece import Piece

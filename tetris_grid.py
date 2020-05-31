@@ -1,3 +1,8 @@
+"""
+Hadar Dagan
+31.5.2020
+v1.0
+"""
 import pygame
 from pygamepp.grid import Grid
 
@@ -10,6 +15,8 @@ class TetrisGrid(Grid):
         super().__init__(20, 10, 50)
 
     def display_borders(self, screen: pygame.Surface):
+        """Displays the border of every block in the grid
+        - very ugly code but it gets the job done"""
         block_size = 50
         for row in self.blocks:
             for block in row:
@@ -53,9 +60,11 @@ class TetrisGrid(Grid):
                                   block.y + block_size))
 
     def reset_screen(self, screen: pygame.Surface):
+        """Shows a screen containing only a grid of blocks"""
         screen.fill(Colors.BLACK)
         self.display_borders(screen)
 
     def freeze_piece(self, piece: Piece):
+        """Freezes a piece on the grid"""
         for pos in piece.position:
             self.blocks[pos[0]][pos[1]].occupied = True

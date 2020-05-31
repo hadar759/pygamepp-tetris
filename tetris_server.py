@@ -1,10 +1,15 @@
+"""
+Hadar Dagan
+31.5.2020
+v1.0
+"""
 import socket
 from tetris_game import TetrisGame
 
 
 class TetrisServer:
     LISTEN_IP = "0.0.0.0"
-    LISTEN_PORT = 4000
+    LISTEN_PORT = 1908
 
     def __init__(self, tetris_game: TetrisGame):
         self.server_socket = socket.socket()
@@ -17,6 +22,7 @@ class TetrisServer:
         self.server_socket.listen(2)
 
     def run(self):
+        """Setup and start the socket and the tetris game"""
         self.initialize_socket()
         self.client_socket, client_address = self.server_socket.accept()
         self.client_socket.send(str(0).encode())

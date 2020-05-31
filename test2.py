@@ -1,11 +1,15 @@
-import tetris_game
-from tetris_client import TetrisClient
+"""
+Hadar Dagan
+31.5.2020
+v1.0
+"""
+import main as m
+
+# TEST THE GAME USING 1 COMPUTER
 
 
 def main():
-    client_game = tetris_game.TetrisGame(500 + 200, 1000, "multiplayer", 75)
-    client = TetrisClient(client_game)
-    client.run()
+    m.main()
 
 
 if __name__ == "__main__":
